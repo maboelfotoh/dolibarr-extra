@@ -113,6 +113,7 @@ ValidTransaction=Validate transaction
 WriteBookKeeping=Register transactions in Ledger
 Bookkeeping=Ledger
 AccountBalance=Account balance
+CustomerBalanceList=Customer balance list
 ObjectsRef=Source object ref
 CAHTF=Total purchase vendor before tax
 TotalExpenseReport=Total expense report
@@ -272,7 +273,6 @@ ChangeBinding=Change the binding
 Accounted=Accounted in ledger
 NotYetAccounted=Not yet accounted in ledger
 ShowTutorial=Show Tutorial
-NotReconciled=Not reconciled
 
 ## Admin
 ApplyMassCategories=Apply mass categories

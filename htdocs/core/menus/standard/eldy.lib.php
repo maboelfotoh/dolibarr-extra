@@ -239,20 +239,11 @@ function print_eldy_menu($db, $atarget, $type_user, &$tabMenu, &$menu, $noout = 
 				  !empty($user->rights->contrat->lire) ||
 				  !empty($user->rights->ficheinter->lire)
 			),
-	    'module'=>'propal|commande|supplier_order|supplier_proposal|contrat|ficheinter'
+	    'module'=>'propal|commande|supplier_order|contrat|ficheinter'
 	);
-
-	$onlysupplierorder = ! empty($user->rights->fournisseur->commande->lire) &&
-		empty($user->rights->propal->lire) &&
-		empty($user->rights->commande->lire) &&
-		empty($user->rights->supplier_order->lire) &&
-		empty($user->rights->supplier_proposal->lire) &&
-		empty($user->rights->contrat->lire) &&
-		empty($user->rights->ficheinter->lire);
-
 	$menu_arr[] = array(
 		'name' => 'Commercial',
-		'link' => ($onlysupplierorder ? '/fourn/commande/index.php?mainmenu=commercial&amp;leftmenu=' : '/comm/index.php?mainmenu=commercial&amp;leftmenu='),
+		'link' => '/comm/index.php?mainmenu=commercial&amp;leftmenu=',
 		'title' => "Commercial",
 		'level' => 0,
 	    'enabled' => $showmode = isVisibleToUserType($type_user, $tmpentry, $listofmodulesforexternal),
@@ -1317,8 +1308,8 @@ function print_left_eldy_menu($db, $menu_array_before, $menu_array_after, &$tabM
 				// Balance
 				$newmenu->add("/accountancy/bookkeeping/balance.php?mainmenu=accountancy&amp;leftmenu=accountancy_accountancy", $langs->trans("AccountBalance"), 1, $user->rights->accounting->mouvements->lire);
 
-		// Customer Balance Sheet MHA - as requested
-		$newmenu->add("/accountancy/bookkeeping/customerbalancelist.php?mainmenu=accountancy&amp;leftmenu=accountancy_accountancy", "Customer balance list", 1, $user->rights->accounting->mouvements->lire);
+		// Customer Balance List
+		$newmenu->add("/accountancy/bookkeeping/customerbalancelist.php?mainmenu=accountancy&amp;leftmenu=accountancy_accountancy", $langs->trans("CustomerBalanceList"), 1, $user->rights->accounting->mouvements->lire);
 
                 // Closure
                 if (!empty($conf->global->MAIN_FEATURES_LEVEL) && $conf->global->MAIN_FEATURES_LEVEL >= 2) {
