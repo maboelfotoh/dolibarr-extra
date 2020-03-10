@@ -205,7 +205,7 @@ if ($action != 'export_csv')
 
 	$button = '<input type="submit" name="exportcsv" class="butAction" value="'.$langs->trans("Export").' ('.$conf->global->ACCOUNTING_EXPORT_FORMAT.')" />';
 
-	$button .= dolGetButtonTitle($langs->trans('ShowOpeningBalance'), '', 'fa fa-eye paddingleft', DOL_URL_ROOT.'/accountancy/bookkeeping/openingbalance.php?'.$param);
+	$button .= dolGetButtonTitle($langs->trans('HideOpeningBalance'), '', 'fa fa-eye-slash paddingleft', DOL_URL_ROOT.'/accountancy/bookkeeping/balance.php?'.$param);
 
 	print_barre_liste($title_page, $page, $_SERVER["PHP_SELF"], $param, $sortfield, $sortorder, $button, $result, $nbtotalofrecords, 'title_accountancy', 0, '', '', $limit);
 
@@ -230,7 +230,7 @@ if ($action != 'export_csv')
 	print '<table class="liste '.($moreforfilter ? "listwithfilterbefore" : "").'">';
 
 	print '<tr class="liste_titre_filter">';
-	print '<td class="liste_titre" colspan="5">';
+	print '<td class="liste_titre" colspan="6">';
 	print $langs->trans('From');
 	print $formaccounting->select_account($search_accountancy_code_start, 'search_accountancy_code_start', 1, array(), 1, 1, '');
 	print ' ';
@@ -247,6 +247,7 @@ if ($action != 'export_csv')
 	print '<tr class="liste_titre">';
 	print_liste_field_titre("AccountAccounting", $_SERVER['PHP_SELF'], "t.numero_compte", "", $param, "", $sortfield, $sortorder);
 	print_liste_field_titre("Label", $_SERVER['PHP_SELF'], "t.label_operation", "", $param, "", $sortfield, $sortorder);
+	print_liste_field_titre("Opening Balance", $_SERVER['PHP_SELF'], "", $param, "", 'class="right"', $sortfield, $sortorder);
 	print_liste_field_titre("Debit", $_SERVER['PHP_SELF'], "t.debit", "", $param, 'class="right"', $sortfield, $sortorder);
 	print_liste_field_titre("Credit", $_SERVER['PHP_SELF'], "t.credit", "", $param, 'class="right"', $sortfield, $sortorder);
 	print_liste_field_titre("Balance", $_SERVER["PHP_SELF"], "", $param, "", 'class="right"', $sortfield, $sortorder);
@@ -259,8 +260,23 @@ if ($action != 'export_csv')
 	$sous_total_credit = 0;
 	$displayed_account = "";
 
+	$total_opening_balance = 0;
+	$sub_total_opening_balance = 0;
+	$sql = "select t.numero_compte, (SUM(t.debit) - SUM(t.credit)) as opening_balance from llx_accounting_bookkeeping as t where entity in (1) and t.doc_date < "
+				."'".$db->idate($search_date_start)."' group by t.numero_compte";
+	$res = $db->query($sql);
+	$nrows = $res->num_rows;
+	$opening_balances = Array();
+	for($i = 0; $i < $nrows; $i++) {
+		$arr = $res->fetch_array();
+		$opening_balances["'".$arr['numero_compte']."'"] = $arr['opening_balance'];
+	}
+
 	foreach ($object->lines as $line)
 	{
+		$opening_balance = isset($opening_balances["'".$line->numero_compte."'"]) ? $opening_balances["'".$line->numero_compte."'"] : 0;
+		$total_opening_balance += $opening_balance;
+
 		$link = '';
 		$total_debit += $line->debit;
 		$total_credit += $line->credit;
@@ -276,28 +292,31 @@ if ($action != 'export_csv')
 		{
 			// Affiche un Sous-Total par compte comptable
 			if ($displayed_account != "") {
-				print '<tr class="liste_total"><td class="right" colspan="2">' . $langs->trans("SubTotal") . ':</td><td class="nowrap right">' . price($sous_total_debit) . '</td><td class="nowrap right">' . price($sous_total_credit) . '</td><td class="nowrap right">' . price(price2num($sous_total_credit - $sous_total_debit)) . '</td>';
+				print '<tr class="liste_total"><td class="right" colspan="2">' . $langs->trans("SubTotal") . ':</td><td class="nowrap right">'.price($sub_total_opening_balance).'</td><td class="nowrap right">' . price($sous_total_debit) . '</td><td class="nowrap right">' . price($sous_total_credit) . '</td><td class="nowrap right">' . price(price2num($sous_total_credit - $sous_total_debit)) . '</td>';
 				print "<td>&nbsp;</td>\n";
 				print '</tr>';
 			}
 
 			// Show first line of a break
 			print '<tr class="trforbreak">';
-			print '<td colspan="6" style="font-weight:bold; border-bottom: 1pt solid black;">' . $line->numero_compte . ($root_account_description ? ' - ' . $root_account_description : '') . '</td>';
+			print '<td colspan="7" style="font-weight:bold; border-bottom: 1pt solid black;">' . $line->numero_compte . ($root_account_description ? ' - ' . $root_account_description : '') . '</td>';
 			print '</tr>';
 
 			$displayed_account = $root_account_description;
 			$sous_total_debit = 0;
 			$sous_total_credit = 0;
+
+			$sub_total_opening_balance = 0;
 		}
 
 		// $object->get_compte_racine($line->numero_compte);
 
 		print '<td>'.length_accountg($line->numero_compte).'</td>';
 		print '<td>'.$description.'</td>';
+		print '<td class="nowraponall right">'.price($opening_balance).'</td>';
 		print '<td class="nowraponall right">'.price($line->debit).'</td>';
 		print '<td class="nowraponall right">'.price($line->credit).'</td>';
-		print '<td class="nowraponall right">'.price($line->debit - $line->credit).'</td>';
+		print '<td class="nowraponall right">'.price($opening_balance + $line->debit - $line->credit).'</td>';
 		print '<td class="center">'.$link;
 		print '</td>';
 		print "</tr>\n";
@@ -305,13 +324,15 @@ if ($action != 'export_csv')
 		// Comptabilise le sous-total
 		$sous_total_debit += $line->debit;
 		$sous_total_credit += $line->credit;
+
+		$sub_total_opening_balance += $opening_balance;
 	}
 
-	print '<tr class="liste_total"><td class="right" colspan="2">'.$langs->trans("SubTotal").':</td><td class="nowrap right">'.price($sous_total_debit).'</td><td class="nowrap right">'.price($sous_total_credit).'</td><td class="nowrap right">'.price(price2num($sous_total_debit - $sous_total_credit)).'</td>';
+	print '<tr class="liste_total"><td class="right" colspan="2">'.$langs->trans("SubTotal").':</td><td class="nowrap right">'.price($sub_total_opening_balance).'</td><td class="nowrap right">'.price($sous_total_debit).'</td><td class="nowrap right">'.price($sous_total_credit).'</td><td class="nowrap right">'.price(price2num($sous_total_debit - $sous_total_credit)).'</td>';
 	print "<td>&nbsp;</td>\n";
 	print '</tr>';
 
-	print '<tr class="liste_total"><td class="right" colspan="2">'.$langs->trans("AccountBalance").':</td><td class="nowrap right">'.price($total_debit).'</td><td class="nowrap right">'.price($total_credit).'</td><td class="nowrap right">'.price(price2num($total_debit - $total_credit)).'</td>';
+	print '<tr class="liste_total"><td class="right" colspan="2">'.$langs->trans("AccountBalance").':</td><td class="nowrap right">'.price($total_opening_balance).'</td><td class="nowrap right">'.price($total_debit).'</td><td class="nowrap right">'.price($total_credit).'</td><td class="nowrap right">'.price(price2num($total_debit - $total_credit)).'</td>';
 	print "<td>&nbsp;</td>\n";
 	print '</tr>';
 
